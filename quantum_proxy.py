@@ -36,7 +36,6 @@ def index():
                 "/bits?count=N": "Get N quantum bits",
                 "/status": "Get cache status",
                 "/stats": "Get statistics",
-                "/health": "Health check",
             },
         }
     )
@@ -140,40 +139,6 @@ def reset_stats():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/health")
-def health_check():
-    """Health check"""
-    if not quantum_cache:
-        return jsonify(
-            {
-                "status": "critical",
-                "error": "Quantum cache not available",
-                "data_type": "none",
-            }
-        ), 503
-
-    try:
-        status = quantum_cache.get_status()
-        remaining_bits = status.get("remaining_bits", 0)
-
-        health_status = "healthy"
-        if remaining_bits <= 0:
-            health_status = "critical"
-        elif remaining_bits <= 10:
-            health_status = "warning"
-
-        return jsonify(
-            {
-                "status": health_status,
-                "remaining_bits": remaining_bits,
-                "is_prefetching": status.get("is_prefetching", False),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error in health check: {e}")
-        return jsonify({"status": "error", "error": str(e)}), 500
-
-
 @app.errorhandler(404)
 def not_found(error):
     return jsonify(
@@ -185,7 +150,6 @@ def not_found(error):
                 "/status - Get cache status",
                 "/stats - Get statistics",
                 "/reset-stats - Reset statistics",
-                "/health - Health check",
             ],
         }
     ), 404
@@ -201,6 +165,5 @@ if __name__ == "__main__":
     logger.info("  GET  /status - Get cache status")
     logger.info("  GET  /stats - Get statistics")
     logger.info("  POST /reset-stats - Reset statistics")
-    logger.info("  GET  /health - Health check")
 
     app.run(host="0.0.0.0", port=80, debug=False)
