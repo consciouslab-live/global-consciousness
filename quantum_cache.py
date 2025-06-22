@@ -6,6 +6,8 @@ import os
 from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
 
+MAX_API_BITS = 1024  # Max length per request defined by ANU API
+
 # Load environment variables
 load_dotenv()
 
@@ -310,11 +312,14 @@ class QuantumCache:
             List of quantum random bits
 
         Raises:
-            QuantumDataException: When quantum data is not available
+            QuantumDataException: When quantum data is not available or count > MAX_API_BITS
         """
         if count <= 0:
             return []
-
+        if count > MAX_API_BITS:
+            raise QuantumDataException(
+                f"Requested bits ({count}) exceed API maximum ({MAX_API_BITS}) per request."
+            )
         bits = []
         for _ in range(count):
             bits.append(self.get_bit())
