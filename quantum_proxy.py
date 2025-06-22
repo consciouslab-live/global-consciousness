@@ -11,8 +11,8 @@ app = Flask(__name__)
 # Initialize quantum cache
 try:
     quantum_cache = QuantumCache(
-        cache_size=120,
-        prefetch_threshold=60,
+        cache_size=1024,
+        prefetch_threshold=512,
         request_timeout=10,
         max_retries=5,
     )
@@ -166,7 +166,6 @@ def health_check():
             {
                 "status": health_status,
                 "remaining_bits": remaining_bits,
-                "quantum_source": status.get("quantum_source"),
                 "is_prefetching": status.get("is_prefetching", False),
             }
         )
@@ -193,14 +192,10 @@ def not_found(error):
 
 
 if __name__ == "__main__":
-    logger.info("🚀 Starting Quantum Random Number Generator")
-    logger.info("⚡ Quantum random number generator")
-    logger.info("🔬 Ensures quantum data for consciousness experiments")
-
     if quantum_cache:
-        logger.info(f"📡 Quantum source: {quantum_cache.quantum_api_url}")
+        logger.info(f"Quantum source: {quantum_cache.quantum_api_url}")
 
-    logger.info("🌐 Available endpoints:")
+    logger.info("Available endpoints:")
     logger.info("  GET  /bit - Get single quantum bit")
     logger.info("  GET  /bits?count=N - Get N quantum bits")
     logger.info("  GET  /status - Get cache status")

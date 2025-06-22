@@ -115,6 +115,8 @@ class QuantumCache:
         Returns:
             Returns quantum data list on success, None on failure
         """
+        start_time = time.time()
+
         headers = self._get_api_headers()
         params = self._get_api_params()
 
@@ -144,7 +146,10 @@ class QuantumCache:
                         bits = [x % 2 for x in raw_data]
 
                         self.stats["successful_requests"] += 1
-                        logger.info(f"✅ Successfully fetched {len(bits)} quantum bits")
+                        elapsed_time = time.time() - start_time
+                        logger.info(
+                            f"✅ Successfully fetched {len(bits)} quantum bits in {elapsed_time:.2f}s"
+                        )
                         return bits
                     else:
                         logger.warning(
@@ -192,7 +197,8 @@ class QuantumCache:
 
         # All retries failed
         self.stats["failed_requests"] += 1
-        logger.error("❌ All fetch attempts failed")
+        elapsed_time = time.time() - start_time
+        logger.error(f"❌ All fetch attempts failed after {elapsed_time:.2f}s")
         return None
 
     def _initial_load(self):
@@ -324,7 +330,6 @@ class QuantumCache:
             "remaining_bits": remaining_bits,
             "next_buffer_bits": next_buffer_bits,
             "is_prefetching": self.is_prefetching,
-            "quantum_source": "ANU Quantum API",
             "api_url": self.quantum_api_url,
             "last_fetch_time": self.last_fetch_time,
             "cache_size": self.cache_size,
