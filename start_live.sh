@@ -4,7 +4,9 @@
 # Run the following command in your terminal:
 #   mkfifo /tmp/quantum_pipe
 
-source .env
+
+YOUTUBE_STREAM_KEY=$(grep '^YOUTUBE_STREAM_KEY=' .env | cut -d '=' -f2-)
+
 RTMP="rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_STREAM_KEY"
 
 ffmpeg -re -f image2pipe -vcodec png -r 30 -i /tmp/quantum_pipe \
