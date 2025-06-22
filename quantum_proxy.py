@@ -1,12 +1,100 @@
 from flask import Flask, request, jsonify
 from quantum_cache import QuantumCache, QuantumDataException
 import logging
+import json
+import os
+import threading
+import time
+from datetime import datetime, timezone
+from threading import Lock
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+class QuantumDataBuffer:
+    """
+    Thread-safe buffer for collecting quantum bits before writing to files
+    """
+
+    def __init__(self, data_dir: str = "quantum_data", flush_threshold: int = 100):
+        self.data_dir = data_dir
+        self.flush_threshold = flush_threshold
+        self.buffer = []
+        self.lock = Lock()
+
+        # Ensure data directory exists
+        os.makedirs(self.data_dir, exist_ok=True)
+
+        # Start periodic flush thread
+        self.flush_thread = threading.Thread(target=self._periodic_flush, daemon=True)
+        self.flush_thread.start()
+        logger.info(
+            f"🔄 Started periodic buffer flush every 60s (threshold: {flush_threshold})"
+        )
+
+    def add_bit(self, bit: int):
+        """Add a quantum bit with timestamp to the buffer"""
+        timestamp = datetime.now(timezone.utc).isoformat() + "Z"
+        data_point = {"timestamp": timestamp, "bit": bit}
+
+        with self.lock:
+            self.buffer.append(data_point)
+
+            # Auto-flush if threshold reached
+            if len(self.buffer) >= self.flush_threshold:
+                self._flush_buffer()
+
+    def _flush_buffer(self):
+        """Internal method to flush buffer to file (must be called with lock held)"""
+        if not self.buffer:
+            return
+
+        try:
+            # Create filename with timestamp
+            filename = (
+                f"bits_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            filepath = os.path.join(self.data_dir, filename)
+
+            # Write buffer to file
+            with open(filepath, "w") as f:
+                json.dump(self.buffer, f)
+
+            logger.info(f"📝 Flushed {len(self.buffer)} bits to {filename}")
+            self.buffer = []
+
+        except Exception as e:
+            logger.error(f"❌ Failed to flush buffer: {e}")
+
+    def flush(self):
+        """Manually flush buffer to file"""
+        with self.lock:
+            self._flush_buffer()
+
+    def _periodic_flush(self):
+        """Periodically flush buffer (runs in background thread)"""
+        while True:
+            time.sleep(60)  # Wait 60 seconds
+            with self.lock:
+                if self.buffer:
+                    self._flush_buffer()
+
+    def get_status(self):
+        """Get buffer status"""
+        with self.lock:
+            return {
+                "buffer_size": len(self.buffer),
+                "flush_threshold": self.flush_threshold,
+                "data_dir": self.data_dir,
+            }
+
+
 app = Flask(__name__)
+
+# Initialize quantum data buffer
+quantum_buffer = QuantumDataBuffer()
 
 # Initialize quantum cache
 try:
@@ -50,6 +138,10 @@ def get_bit():
 
     try:
         bit = quantum_cache.get_bit()
+
+        # Add to collection buffer for uploading
+        quantum_buffer.add_bit(bit)
+
         return jsonify({"bit": bit, "data_type": "quantum"})
     except QuantumDataException as e:
         logger.error(f"Quantum data error: {e}")
@@ -80,6 +172,11 @@ def get_bits():
             return jsonify({"error": "Invalid count. Must be 1-1000"}), 400
 
         bits = quantum_cache.get_bits(count)
+
+        # Add each bit to collection buffer for uploading
+        for bit in bits:
+            quantum_buffer.add_bit(bit)
+
         return jsonify({"bits": bits, "count": len(bits), "data_type": "quantum"})
     except QuantumDataException as e:
         logger.error(f"Quantum data error: {e}")
