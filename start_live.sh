@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# Before running this script, make sure to create the named pipe (FIFO) for video frames:
+# Run the following command in your terminal:
+#   mkfifo /tmp/quantum_pipe
+
 source .env
 RTMP="rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_STREAM_KEY"
 
