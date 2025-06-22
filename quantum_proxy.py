@@ -36,6 +36,7 @@ def index():
                 "/bits?count=N": "Get N quantum bits",
                 "/status": "Get cache status",
                 "/stats": "Get statistics",
+                "/bit-stats": "Get bit distribution statistics",
             },
         }
     )
@@ -125,6 +126,20 @@ def get_stats():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/bit-stats")
+def get_bit_stats():
+    """Get bit distribution statistics"""
+    if not quantum_cache:
+        return jsonify({"error": "Quantum cache not available", "status": "error"}), 503
+
+    try:
+        bit_stats = quantum_cache.get_bit_stats()
+        return jsonify(bit_stats)
+    except Exception as e:
+        logger.error(f"Error getting bit stats: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/reset-stats", methods=["POST"])
 def reset_stats():
     """Reset statistics"""
@@ -149,6 +164,7 @@ def not_found(error):
                 "/bits?count=N - Get N quantum bits",
                 "/status - Get cache status",
                 "/stats - Get statistics",
+                "/bit-stats - Get bit distribution statistics",
                 "/reset-stats - Reset statistics",
             ],
         }
@@ -164,6 +180,7 @@ if __name__ == "__main__":
     logger.info("  GET  /bits?count=N - Get N quantum bits")
     logger.info("  GET  /status - Get cache status")
     logger.info("  GET  /stats - Get statistics")
+    logger.info("  GET  /bit-stats - Get bit distribution statistics")
     logger.info("  POST /reset-stats - Reset statistics")
 
     app.run(host="0.0.0.0", port=80, debug=False)

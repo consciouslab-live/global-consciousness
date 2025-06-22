@@ -5,6 +5,8 @@ import logging
 import os
 from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
+from scipy.stats import binomtest
+import humanize
 
 MAX_API_BITS = 1024  # Max length per request defined by ANU API
 
@@ -94,6 +96,16 @@ class QuantumCache:
             "timeout_errors": 0,
             "network_errors": 0,
         }
+
+        # Bit statistics for distribution analysis
+        self.bit_stats = {
+            "count_0": 0,
+            "count_1": 0,
+            "total_bits": 0,
+        }
+
+        # Record startup time for runtime calculation
+        self.startup_time = time.time()
 
         logger.info(f"🔧 Quantum Cache initialized with API: {self.quantum_api_url}")
 
@@ -299,6 +311,13 @@ class QuantumCache:
         self.current_index += 1
         self.stats["cache_hits"] += 1
 
+        # Update bit statistics
+        if bit == 0:
+            self.bit_stats["count_0"] += 1
+        else:
+            self.bit_stats["count_1"] += 1
+        self.bit_stats["total_bits"] += 1
+
         return bit
 
     def get_bits(self, count: int) -> List[int]:
@@ -349,4 +368,63 @@ class QuantumCache:
         """Reset statistical counters"""
         for key in self.stats:
             self.stats[key] = 0
+
+        # Reset bit statistics
+        self.bit_stats = {
+            "count_0": 0,
+            "count_1": 0,
+            "total_bits": 0,
+        }
+
         logger.info("📊 Statistics reset")
+
+    def get_bit_stats(self) -> Dict[str, Any]:
+        """
+        Get bit distribution statistics
+
+        Returns:
+            Dictionary containing bit statistics including p-value analysis
+        """
+
+        sample_size = self.bit_stats["total_bits"]
+        count_0 = self.bit_stats["count_0"]
+        count_1 = self.bit_stats["count_1"]
+
+        if sample_size == 0:
+            return {
+                "sample_size": 0,
+                "count_0": 0,
+                "count_1": 0,
+                "ratio_0": 0.0,
+                "ratio_1": 0.0,
+                "bias": 0.0,
+                "p_value": 1.0,
+                "significant": False,
+            }
+
+        ratio_0 = count_0 / sample_size
+        ratio_1 = count_1 / sample_size
+        bias = abs(ratio_0 - 0.5)
+
+        # Perform binomial test to check if the distribution significantly deviates from 50/50
+        # We test against null hypothesis that p=0.5 (fair coin)
+        p_value = binomtest(count_1, sample_size, 0.5).pvalue
+        significant = bool(p_value < 0.05)
+
+        # Calculate runtime using humanize
+        current_time = time.time()
+        runtime_seconds = int(current_time - self.startup_time)
+        runtime_str = humanize.naturaldelta(runtime_seconds)
+
+        return {
+            "sample_size": sample_size,
+            "count_0": count_0,
+            "count_1": count_1,
+            "ratio_0": round(ratio_0, 4),
+            "ratio_1": round(ratio_1, 4),
+            "bias": round(bias, 4),
+            "p_value": round(float(p_value), 4),
+            "significant": significant,
+            "runtime": runtime_str,
+            "runtime_seconds": runtime_seconds,
+        }
