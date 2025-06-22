@@ -62,7 +62,7 @@ Replace `your_api_key_here` with your actual API key from the ANU Quantum Number
 from quantum_cache import QuantumCache
 
 # Initialize cache
-cache = QuantumCache(cache_size=50)
+cache = QuantumCache(cache_size=50, prefetch_threshold=25)
 print('✅ Cache initialized successfully')
 
 # Check status
@@ -81,8 +81,9 @@ from quantum_cache import QuantumCache, QuantumDataException
 try:
     # Initialize with custom parameters
     cache = QuantumCache(
-        cache_size=1024,          # Larger cache for better performance
-        prefetch_threshold=512    # Start prefetching when 512 bits remain
+        cache_size=1024,
+        prefetch_threshold=512,
+        max_retries=3,
     )
     
     # Get single quantum bit
