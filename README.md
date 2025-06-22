@@ -54,6 +54,15 @@ echo 'QUANTUM_API_KEY=your_api_key_here' > .env
 
 Replace `your_api_key_here` with your actual API key from the ANU Quantum Numbers service.
 
+### 6. VSCode Extensions for Code Quality
+
+To maintain high code quality when committing, install these recommended VSCode extensions:
+
+**Essential Extensions:**
+- **Ruff** (`charliermarsh.ruff`) - Fast Python linter and formatter
+- **isort** (`ms-python.isort`) - Python import sorting
+
+
 ## 📖 Usage Examples
 
 ### Basic Quantum Cache Usage
