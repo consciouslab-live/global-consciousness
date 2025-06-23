@@ -1,30 +1,81 @@
-from PIL import Image, ImageDraw, ImageFont
+import subprocess
 import random
 import time
+from PIL import Image, ImageDraw, ImageFont
+from dotenv import load_dotenv
+import os
 
-W, H = 1280, 720
-FPS = 30
-FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
-FONT_SIZE = 280
-font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
+load_dotenv()
 
-pipe = open("/tmp/quantum_pipe", "wb", buffering=0)
+YOUTUBE_STREAM_KEY = os.getenv("YOUTUBE_STREAM_KEY")
+
+W, H, FPS = 1280, 720, 30
+FONT = ImageFont.truetype(
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 280
+)
 
 
-def draw_frame(bit):
+# pre-render the only two possible frames
+def make(bit):
     im = Image.new("RGB", (W, H), "black")
-    draw = ImageDraw.Draw(im)
+    d = ImageDraw.Draw(im)
     txt = str(bit)
-    bbox = draw.textbbox((0, 0), txt, font=font)
+    bbox = d.textbbox((0, 0), txt, font=FONT)
     x = (W - (bbox[2] - bbox[0])) // 2
     y = (H - (bbox[3] - bbox[1])) // 2
-    draw.text((x, y), txt, font=font, fill="#00ff99")
-    return im
+    d.text((x, y), txt, font=FONT, fill="#00ff99")
+    return im.tobytes()  # raw RGB24 bytes
 
+
+RAW = [make(0), make(1)]
+
+RTMP = f"rtmp://a.rtmp.youtube.com/live2/{YOUTUBE_STREAM_KEY}"
+
+cmd = [
+    "ffmpeg",
+    "-f",
+    "rawvideo",
+    "-pixel_format",
+    "rgb24",
+    "-video_size",
+    f"{W}x{H}",
+    "-framerate",
+    str(FPS),
+    "-i",
+    "-",  # ← stdin
+    "-f",
+    "lavfi",
+    "-i",
+    "anullsrc=channel_layout=stereo:sample_rate=44100",
+    "-map",
+    "0:v:0",
+    "-map",
+    "1:a:0",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-tune",
+    "zerolatency",
+    "-pix_fmt",
+    "yuv420p",
+    "-b:v",
+    "2500k",
+    "-maxrate",
+    "2500k",
+    "-bufsize",
+    "5000k",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    "-f",
+    "flv",
+    RTMP,
+]
+proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
 
 while True:
-    bit = random.randint(0, 1)
-    frame = draw_frame(bit)
-    for _ in range(FPS):
-        frame.save(pipe, format="PNG")
-        time.sleep(1 / FPS)
+    if proc.stdin is not None:
+        proc.stdin.write(RAW[random.getrandbits(1)])
+    time.sleep(1 / FPS)
