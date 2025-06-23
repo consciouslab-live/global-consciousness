@@ -10,6 +10,7 @@ load_dotenv()
 YOUTUBE_STREAM_KEY = os.getenv("YOUTUBE_STREAM_KEY")
 
 W, H, FPS = 1280, 720, 30
+# W, H, FPS = 1280, 720, 1
 FONT = ImageFont.truetype(
     "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 280
 )
