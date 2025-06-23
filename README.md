@@ -9,43 +9,20 @@ This is the backend proxy service for [ConsciousLab Live](https://www.youtube.co
 
 ### Prerequisites
 
-- Python 3.8+
-- API Key from [ANU Quantum Numbers API](https://quantumnumbers.anu.edu.au/api-key)
+- Install Python 3.8+
+- Install [uv](https://docs.astral.sh/uv/)
 
-### 1. Install UV Package Manager
+### Steps
+1. Clone repo: `git clone https://github.com/consciouslab-live/global-consciousness.git`
+2. Move into repo: `cd global-consciousness`
+3. Create the virtualenv using Python 3.8+: `uv venv` and activate it: `source .venv/bin/activate`
+4. Install [pre-commit](https://pre-commit.com/) hooks: `pre-commit install`
+5. Install dependencies: `uv pip install -r requirements.txt`
+6. Create a `.env` file in the project root: `echo 'QUANTUM_API_KEY=your_api_key_here' > .env`
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+### Setup API Key
 
-Add UV to your PATH (if not automatically added):
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### 2. Setup Pre-commit
-
-```bash
-apt install pre-commit
-pre-commit install
-```
-
-### 3. Setup Environment
-
-Create and activate virtual environment:
-```bash
-uv venv
-source .venv/bin/activate
-```
-
-### 4. Install Dependencies
-
-```bash
-uv pip install -r requirements.txt
-```
-
-### 5. Setup API Key
+Get API Key from [ANU Quantum Numbers API](https://quantumnumbers.anu.edu.au/api-key)
 
 Create a `.env` file in the project root:
 ```bash
@@ -54,11 +31,8 @@ echo 'QUANTUM_API_KEY=your_api_key_here' > .env
 
 Replace `your_api_key_here` with your actual API key from the ANU Quantum Numbers service.
 
-### 6. VSCode Extensions for Code Quality
+### Install VSCode Extensions
 
-To maintain high code quality when committing, install these recommended VSCode extensions:
-
-**Essential Extensions:**
 - **Ruff** (`charliermarsh.ruff`) - Fast Python linter and formatter
 - **isort** (`ms-python.isort`) - Python import sorting
 
