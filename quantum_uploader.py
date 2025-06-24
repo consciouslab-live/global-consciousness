@@ -147,8 +147,8 @@ class QuantumUploader:
             # Create dataset
             dataset = Dataset.from_list(data_points, features=features)
 
-            # Determine split name (date)
-            today = datetime.now(timezone.utc).strftime("bits_%Y%m%d")
+            # Determine split name (date and hour)
+            today = datetime.now(timezone.utc).strftime("bits_%Y%m%d_%H")
 
             # Upload to Hugging Face
             dataset.push_to_hub(self.hf_repo, split=today)
