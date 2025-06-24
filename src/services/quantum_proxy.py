@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from quantum_cache import QuantumCache, QuantumDataException
+from src.core.quantum_cache import QuantumCache, QuantumDataException
 import logging
 import json
 import os
@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timezone
 from threading import Lock
 from typing import Optional
-from config_loader import get_quantum_proxy_config, get_config
+from src.config.config_loader import get_quantum_proxy_config, get_config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

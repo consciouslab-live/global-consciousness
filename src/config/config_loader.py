@@ -26,7 +26,7 @@ class Config:
         if self._config is None:
             self.load_config()
 
-    def load_config(self, config_path: str = "config.yaml"):
+    def load_config(self, config_path: str = "src/config/config.yaml"):
         """Load configuration from YAML file"""
         try:
             if not os.path.exists(config_path):
@@ -58,14 +58,14 @@ class Config:
                 "coin_fairness_threshold": 0.5,
             },
             "quantum_proxy": {
-                "data_dir": "quantum_data",
+                "data_dir": "data/quantum_data",
                 "flush_threshold": 100,
                 "periodic_flush_interval": 60,
                 "max_bits_per_request": 1000,
             },
             "quantum_uploader": {
                 "hf_repo": "consciouslab-live/quantum-bits",
-                "data_dir": "quantum_data",
+                "data_dir": "data/quantum_data",
                 "upload_interval": 3600,
                 "batch_size": 10000,
                 "small_batch_size": 1000,
@@ -102,7 +102,7 @@ class Config:
         """Get entire configuration section"""
         return self.get(section, {})
 
-    def reload(self, config_path: str = "config.yaml"):
+    def reload(self, config_path: str = "src/config/config.yaml"):
         """Reload configuration from file"""
         self.load_config(config_path)
 

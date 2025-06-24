@@ -6,8 +6,8 @@ Simple startup script for running the quantum data uploader
 
 import sys
 import signal
-from quantum_uploader import QuantumUploader, logger
-from config_loader import get_quantum_uploader_config, get_config
+from src.services.quantum_uploader import QuantumUploader, logger
+from src.config.config_loader import get_quantum_uploader_config, get_config
 
 
 def signal_handler(sig, frame):

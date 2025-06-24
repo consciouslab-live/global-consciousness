@@ -15,7 +15,7 @@ quantum_cache:
 
 # Quantum Proxy Configuration
 quantum_proxy:
-  data_dir: "quantum_data"     # Directory for storing quantum data files
+  data_dir: "data/quantum_data"     # Directory for storing quantum data files
   flush_threshold: 100         # Buffer size threshold for auto-flush
   periodic_flush_interval: 60  # Periodic flush interval (seconds)
   max_bits_per_request: 1000   # Maximum bits allowed per API request
@@ -23,7 +23,7 @@ quantum_proxy:
 # Quantum Uploader Configuration
 quantum_uploader:
   hf_repo: "consciouslab-live/quantum-bits"  # Default Hugging Face repository
-  data_dir: "quantum_data"                   # Directory to read data files from
+  data_dir: "data/quantum_data"                   # Directory to read data files from
   upload_interval: 3600                      # Upload interval (seconds) - 1 hour (matches split granularity)
   batch_size: 10000                         # Maximum bits per upload batch
   small_batch_size: 1000                    # Smaller batch size for testing

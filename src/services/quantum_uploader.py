@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from datasets import Dataset, Features, Value
 from huggingface_hub import login
-from config_loader import get_quantum_uploader_config, get_config
+from src.config.config_loader import get_quantum_uploader_config, get_config
 
 # Load environment variables
 load_dotenv()

@@ -10,8 +10,8 @@ import json
 import tempfile
 import shutil
 from datetime import datetime, timezone
-from quantum_uploader import QuantumUploader
-from config_loader import get_config
+from src.services.quantum_uploader import QuantumUploader
+from src.config.config_loader import get_config
 
 
 def create_test_data_file(data_dir: str, num_bits: int = 10, suffix: str = "") -> str:

@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
 from scipy.stats import binomtest
 import humanize
-from config_loader import get_quantum_cache_config, get_config
+from src.config.config_loader import get_quantum_cache_config, get_config
 
 # Load environment variables
 load_dotenv()
