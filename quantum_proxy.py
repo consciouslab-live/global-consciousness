@@ -60,7 +60,7 @@ class QuantumDataBuffer:
 
             # Write buffer to file
             with open(filepath, "w") as f:
-                json.dump(self.buffer, f)
+                json.dump(self.buffer, f, indent=4)
 
             logger.info(f"📝 Flushed {len(self.buffer)} bits to {filename}")
             self.buffer = []

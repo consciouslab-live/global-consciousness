@@ -28,7 +28,7 @@ def create_test_data_file(data_dir: str, num_bits: int = 10) -> str:
     filepath = os.path.join(data_dir, filename)
 
     with open(filepath, "w") as f:
-        json.dump(data_points, f)
+        json.dump(data_points, f, indent=4)
 
     print(f"✅ Created test data file: {filename} with {num_bits} bits")
     return filepath
