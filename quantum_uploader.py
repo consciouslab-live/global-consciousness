@@ -5,10 +5,11 @@ import logging
 import json
 import glob
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from datasets import Dataset, Features, Value
 from huggingface_hub import login
+from config_loader import get_quantum_uploader_config, get_config
 
 # Load environment variables
 load_dotenv()
@@ -27,24 +28,27 @@ class QuantumUploader:
 
     def __init__(
         self,
-        hf_repo: str = "consciouslab-live/quantum-bits",
-        data_dir: str = "quantum_data",
-        upload_interval: int = 600,  # seconds between uploads (10 minutes)
-        batch_size: int = 10000,  # maximum bits per upload
+        hf_repo: Optional[str] = None,
+        data_dir: Optional[str] = None,
+        upload_interval: Optional[int] = None,  # seconds between uploads
+        batch_size: Optional[int] = None,  # maximum bits per upload
     ):
         """
         Initialize quantum uploader
 
         Args:
-            hf_repo: Hugging Face repository name
-            data_dir: Directory containing data files from quantum_proxy.py
-            upload_interval: Seconds between uploads
-            batch_size: Maximum bits to upload in one batch
+            hf_repo: Hugging Face repository name (if None, uses config)
+            data_dir: Directory containing data files from quantum_proxy.py (if None, uses config)
+            upload_interval: Seconds between uploads (if None, uses config)
+            batch_size: Maximum bits to upload in one batch (if None, uses config)
         """
-        self.hf_repo = hf_repo
-        self.data_dir = data_dir
-        self.upload_interval = upload_interval
-        self.batch_size = batch_size
+        # Load configuration
+        uploader_config = get_quantum_uploader_config()
+
+        self.hf_repo = hf_repo or uploader_config["hf_repo"]
+        self.data_dir = data_dir or uploader_config["data_dir"]
+        self.upload_interval = upload_interval or uploader_config["upload_interval"]
+        self.batch_size = batch_size or uploader_config["batch_size"]
 
         # Control flags
         self.running = False
@@ -186,7 +190,10 @@ class QuantumUploader:
 
                         # Small delay between batches
                         if i + self.batch_size < len(data_points):
-                            time.sleep(5)
+                            inter_batch_delay = get_config(
+                                "quantum_uploader.inter_batch_delay"
+                            )
+                            time.sleep(inter_batch_delay)
 
             except Exception as e:
                 logger.error(f"❌ Upload worker error: {e}")
@@ -227,7 +234,8 @@ class QuantumUploader:
 
         # Wait for thread to finish
         if self.upload_thread and self.upload_thread.is_alive():
-            self.upload_thread.join(timeout=10)
+            thread_timeout = get_config("quantum_uploader.thread_join_timeout")
+            self.upload_thread.join(timeout=thread_timeout)
 
         # Upload any remaining data
         try:

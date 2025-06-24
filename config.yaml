@@ -1,0 +1,32 @@
+# Global Consciousness Quantum Data Configuration
+# Centralized configuration for all hyperparameters
+
+# Quantum Cache Configuration
+quantum_cache:
+  cache_size: 1024              # Amount of data to fetch each time
+  prefetch_threshold: 512       # Start prefetching when remaining data falls below this value
+  request_timeout: 10           # Request timeout duration (seconds)
+  max_retries: 5               # Maximum number of retries for failed requests
+  max_api_bits: 1024           # Maximum bits per API request (ANU API limit)
+  rate_limit_wait: 60          # Wait time when rate limited (seconds)
+  exponential_backoff_max: 60  # Maximum wait time for exponential backoff (seconds)
+  statistical_significance: 0.05 # P-value threshold for statistical significance
+  coin_fairness_threshold: 0.5  # Expected fair coin probability
+
+# Quantum Proxy Configuration
+quantum_proxy:
+  data_dir: "quantum_data"     # Directory for storing quantum data files
+  flush_threshold: 100         # Buffer size threshold for auto-flush
+  periodic_flush_interval: 60  # Periodic flush interval (seconds)
+  max_bits_per_request: 1000   # Maximum bits allowed per API request
+
+# Quantum Uploader Configuration
+quantum_uploader:
+  hf_repo: "consciouslab-live/quantum-bits"  # Default Hugging Face repository
+  data_dir: "quantum_data"                   # Directory to read data files from
+  upload_interval: 3600                      # Upload interval (seconds) - 1 hour (matches split granularity)
+  batch_size: 10000                         # Maximum bits per upload batch
+  small_batch_size: 1000                    # Smaller batch size for testing
+  inter_batch_delay: 5                      # Delay between batches (seconds)
+  thread_join_timeout: 10                   # Timeout for thread joining (seconds)
+  status_display_interval: 60               # Status display interval (seconds) 

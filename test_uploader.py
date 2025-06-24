@@ -11,9 +11,10 @@ import tempfile
 import shutil
 from datetime import datetime, timezone
 from quantum_uploader import QuantumUploader
+from config_loader import get_config
 
 
-def create_test_data_file(data_dir: str, num_bits: int = 10) -> str:
+def create_test_data_file(data_dir: str, num_bits: int = 10, suffix: str = "") -> str:
     """Create test data file"""
     data_points = []
 
@@ -21,10 +22,11 @@ def create_test_data_file(data_dir: str, num_bits: int = 10) -> str:
         timestamp = datetime.now(timezone.utc).isoformat() + "Z"
         bit = i % 2  # Alternating 0 and 1
         data_points.append({"timestamp": timestamp, "bit": bit})
-        time.sleep(0.1)  # Small interval to create different timestamps
+        time.sleep(0.01)  # Small interval to create different timestamps
 
-    # Create file
-    filename = f"bits_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+    # Create file with unique name including microseconds and suffix
+    now = datetime.now(timezone.utc)
+    filename = f"bits_{now.strftime('%Y%m%d_%H%M%S')}_{now.microsecond}{suffix}.json"
     filepath = os.path.join(data_dir, filename)
 
     with open(filepath, "w") as f:
@@ -42,16 +44,16 @@ def test_file_processing():
     temp_dir = tempfile.mkdtemp()
 
     try:
-        # Create test data files
-        create_test_data_file(temp_dir, 5)
-        create_test_data_file(temp_dir, 3)
+        # Create test data files with unique names
+        create_test_data_file(temp_dir, 5, "_file1")
+        time.sleep(0.1)  # Ensure different timestamps
+        create_test_data_file(temp_dir, 3, "_file2")
 
-        # Create uploader
+        # Create uploader using configuration
         uploader = QuantumUploader(
-            hf_repo="consciouslab-live/quantum-bits",
             data_dir=temp_dir,
-            upload_interval=30,
-            batch_size=100,
+            upload_interval=get_config("quantum_uploader.upload_interval", 30),
+            batch_size=get_config("quantum_uploader.small_batch_size", 100),
         )
 
         # Test reading files

@@ -7,8 +7,7 @@ from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
 from scipy.stats import binomtest
 import humanize
-
-MAX_API_BITS = 1024  # Max length per request defined by ANU API
+from config_loader import get_quantum_cache_config, get_config
 
 # Load environment variables
 load_dotenv()
@@ -38,26 +37,31 @@ class QuantumCache:
 
     def __init__(
         self,
-        cache_size: int = 1024,
-        prefetch_threshold: int = 512,
+        cache_size: Optional[int] = None,
+        prefetch_threshold: Optional[int] = None,
         api_key: Optional[str] = None,
-        request_timeout: int = 10,
-        max_retries: int = 5,
+        request_timeout: Optional[int] = None,
+        max_retries: Optional[int] = None,
     ):
         """
         Initialize quantum cache
 
         Args:
-            cache_size: Amount of data to fetch each time
-            prefetch_threshold: Start prefetching when remaining data falls below this value
+            cache_size: Amount of data to fetch each time (if None, uses config)
+            prefetch_threshold: Start prefetching when remaining data falls below this value (if None, uses config)
             api_key: API key for quantum service (if None, loads from QUANTUM_API_KEY env var)
-            request_timeout: Request timeout duration
-            max_retries: Maximum number of retries
+            request_timeout: Request timeout duration (if None, uses config)
+            max_retries: Maximum number of retries (if None, uses config)
         """
-        self.cache_size = cache_size
-        self.prefetch_threshold = prefetch_threshold
-        self.request_timeout = request_timeout
-        self.max_retries = max_retries
+        # Load configuration
+        cache_config = get_quantum_cache_config()
+
+        self.cache_size = cache_size or cache_config["cache_size"]
+        self.prefetch_threshold = (
+            prefetch_threshold or cache_config["prefetch_threshold"]
+        )
+        self.request_timeout = request_timeout or cache_config["request_timeout"]
+        self.max_retries = max_retries or cache_config["max_retries"]
 
         self.quantum_api_url = "https://api.quantumnumbers.anu.edu.au/"
 
@@ -171,9 +175,12 @@ class QuantumCache:
                         )
 
                 elif response.status_code == 429:
-                    logger.warning("Rate limit exceeded, waiting 60s...")
+                    rate_limit_wait = get_config("quantum_cache.rate_limit_wait")
+                    logger.warning(
+                        f"Rate limit exceeded, waiting {rate_limit_wait}s..."
+                    )
                     self.stats["rate_limit_hits"] += 1
-                    time.sleep(60)  # Wait one minute before retry
+                    time.sleep(rate_limit_wait)  # Wait before retry
                     continue
 
                 elif response.status_code == 401:
@@ -205,7 +212,8 @@ class QuantumCache:
 
             # Wait before retry (exponential backoff)
             if attempt < self.max_retries - 1:
-                wait_time = min(2**attempt, 60)  # Maximum wait 60 seconds
+                max_backoff = get_config("quantum_cache.exponential_backoff_max")
+                wait_time = min(2**attempt, max_backoff)  # Maximum wait from config
                 logger.info(f"Waiting {wait_time}s before retry...")
                 time.sleep(wait_time)
 
@@ -335,9 +343,10 @@ class QuantumCache:
         """
         if count <= 0:
             return []
-        if count > MAX_API_BITS:
+        max_api_bits = get_config("quantum_cache.max_api_bits")
+        if count > max_api_bits:
             raise QuantumDataException(
-                f"Requested bits ({count}) exceed API maximum ({MAX_API_BITS}) per request."
+                f"Requested bits ({count}) exceed API maximum ({max_api_bits}) per request."
             )
         bits = []
         for _ in range(count):
@@ -404,12 +413,15 @@ class QuantumCache:
 
         ratio_0 = count_0 / sample_size
         ratio_1 = count_1 / sample_size
-        bias = abs(ratio_0 - 0.5)
+        fair_ratio = get_config("quantum_cache.coin_fairness_threshold")
+        bias = abs(ratio_0 - fair_ratio)
 
         # Perform binomial test to check if the distribution significantly deviates from 50/50
         # We test against null hypothesis that p=0.5 (fair coin)
-        p_value = binomtest(count_1, sample_size, 0.5).pvalue
-        significant = bool(p_value < 0.05)
+        coin_fairness = get_config("quantum_cache.coin_fairness_threshold")
+        significance_level = get_config("quantum_cache.statistical_significance")
+        p_value = binomtest(count_1, sample_size, coin_fairness).pvalue
+        significant = bool(p_value < significance_level)
 
         # Calculate runtime using humanize
         current_time = time.time()

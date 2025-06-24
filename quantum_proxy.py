@@ -7,6 +7,8 @@ import threading
 import time
 from datetime import datetime, timezone
 from threading import Lock
+from typing import Optional
+from config_loader import get_quantum_proxy_config, get_config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,9 +20,12 @@ class QuantumDataBuffer:
     Thread-safe buffer for collecting quantum bits before writing to files
     """
 
-    def __init__(self, data_dir: str = "quantum_data", flush_threshold: int = 100):
-        self.data_dir = data_dir
-        self.flush_threshold = flush_threshold
+    def __init__(
+        self, data_dir: Optional[str] = None, flush_threshold: Optional[int] = None
+    ):
+        proxy_config = get_quantum_proxy_config()
+        self.data_dir = data_dir or proxy_config["data_dir"]
+        self.flush_threshold = flush_threshold or proxy_config["flush_threshold"]
         self.buffer = []
         self.lock = Lock()
 
@@ -30,8 +35,9 @@ class QuantumDataBuffer:
         # Start periodic flush thread
         self.flush_thread = threading.Thread(target=self._periodic_flush, daemon=True)
         self.flush_thread.start()
+        flush_interval = get_config("quantum_proxy.periodic_flush_interval")
         logger.info(
-            f"🔄 Started periodic buffer flush every 60s (threshold: {flush_threshold})"
+            f"🔄 Started periodic buffer flush every {flush_interval}s (threshold: {self.flush_threshold})"
         )
 
     def add_bit(self, bit: int):
@@ -75,8 +81,9 @@ class QuantumDataBuffer:
 
     def _periodic_flush(self):
         """Periodically flush buffer (runs in background thread)"""
+        flush_interval = get_config("quantum_proxy.periodic_flush_interval")
         while True:
-            time.sleep(60)  # Wait 60 seconds
+            time.sleep(flush_interval)  # Wait configured seconds
             with self.lock:
                 if self.buffer:
                     self._flush_buffer()
@@ -98,12 +105,8 @@ quantum_buffer = QuantumDataBuffer()
 
 # Initialize quantum cache
 try:
-    quantum_cache = QuantumCache(
-        cache_size=1024,
-        prefetch_threshold=512,
-        request_timeout=10,
-        max_retries=5,
-    )
+    # Use quantum_cache configuration directly
+    quantum_cache = QuantumCache()
     logger.info("✅ Quantum cache initialized successfully")
 except Exception as e:
     logger.error(f"❌ Failed to initialize quantum cache: {e}")
@@ -168,8 +171,9 @@ def get_bits():
 
     try:
         count = int(request.args.get("count", 1))
-        if count <= 0 or count > 1000:
-            return jsonify({"error": "Invalid count. Must be 1-1000"}), 400
+        max_bits = get_config("quantum_proxy.max_bits_per_request")
+        if count <= 0 or count > max_bits:
+            return jsonify({"error": f"Invalid count. Must be 1-{max_bits}"}), 400
 
         bits = quantum_cache.get_bits(count)
 
