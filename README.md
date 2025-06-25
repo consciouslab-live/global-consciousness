@@ -118,3 +118,9 @@ MIT License
 - [ANU Quantum Numbers API](https://api.quantumnumbers.anu.edu.au/)
 - [Princeton PEAR Lab](https://www.princeton.edu/~pear/) (Historical reference)
 
+
+## TODOs
+
+- [ ] Implement per-second quantum bit streaming and save as uint32 with precise UTC timestamps
+- [ ] Digitally sign each hourly .jsonl file using a cryptographic signature (e.g., RSA .sig) to ensure authenticity
+- [ ] Upload all quantum data to Hugging Face Datasets in verifiable, time-indexed Arrow format
