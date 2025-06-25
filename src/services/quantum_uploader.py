@@ -5,7 +5,7 @@ import logging
 import json
 import glob
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
 from datasets import Dataset, Features, Value
 from huggingface_hub import login
@@ -86,9 +86,9 @@ class QuantumUploader:
             logger.error(f"❌ Failed to login to Hugging Face: {e}")
             raise
 
-    def _read_data_files(self) -> List[Dict]:
-        """Read all available data files"""
-        data_points = []
+    def _read_data_files(self) -> List[Tuple[str, List[Dict]]]:
+        """Read all available data files without deleting them"""
+        file_data_pairs = []
         files_processed = 0
 
         try:
@@ -108,13 +108,11 @@ class QuantumUploader:
                         file_data = json.load(f)
 
                     if isinstance(file_data, list):
-                        data_points.extend(file_data)
+                        file_data_pairs.append((filepath, file_data))
                         files_processed += 1
 
-                        # Remove processed file
-                        os.remove(filepath)
                         logger.debug(
-                            f"📄 Processed and removed {os.path.basename(filepath)} ({len(file_data)} bits)"
+                            f"📄 Read {os.path.basename(filepath)} ({len(file_data)} bits)"
                         )
                     else:
                         logger.warning(f"⚠️ Invalid data format in {filepath}")
@@ -123,33 +121,40 @@ class QuantumUploader:
                     logger.error(f"❌ Error processing file {filepath}: {e}")
                     self.stats["file_errors"] += 1
 
-            self.stats["total_files_processed"] += files_processed
-            logger.info(
-                f"✅ Processed {files_processed} files, collected {len(data_points)} bits"
-            )
+            total_bits = sum(len(data) for _, data in file_data_pairs)
+            logger.info(f"✅ Read {files_processed} files, collected {total_bits} bits")
 
         except Exception as e:
             logger.error(f"❌ Error reading data files: {e}")
             self.stats["file_errors"] += 1
 
-        return data_points
+        return file_data_pairs
 
-    def _upload_data(self, data_points: List[Dict]):
-        """Upload data points to Hugging Face"""
-        if not data_points:
+    def _upload_data(self, file_data_pairs: List[Tuple[str, List[Dict]]]):
+        """Upload data points to Hugging Face and delete files after successful upload"""
+        if not file_data_pairs:
             logger.debug("📭 No data to upload")
+            return
+
+        # Collect all data points from all files
+        all_data_points = []
+        for filepath, data_points in file_data_pairs:
+            all_data_points.extend(data_points)
+
+        if not all_data_points:
+            logger.debug("📭 No data points to upload")
             return
 
         try:
             logger.info(
-                f"📤 Uploading {len(data_points)} quantum bits to Hugging Face..."
+                f"📤 Uploading {len(all_data_points)} quantum bits to Hugging Face..."
             )
 
             # Define dataset features
             features = Features({"timestamp": Value("string"), "bit": Value("int8")})
 
             # Create dataset
-            dataset = Dataset.from_list(data_points, features=features)
+            dataset = Dataset.from_list(all_data_points, features=features)
 
             # Determine split name (date and hour)
             today = datetime.now(timezone.utc).strftime("bits_%Y%m%d_%H")
@@ -157,19 +162,33 @@ class QuantumUploader:
             # Upload to Hugging Face
             dataset.push_to_hub(self.hf_repo, split=today)
 
+            # ✅ Only delete files AFTER successful upload
+            files_deleted = 0
+            for filepath, data_points in file_data_pairs:
+                try:
+                    os.remove(filepath)
+                    files_deleted += 1
+                    logger.debug(
+                        f"📄 Deleted {os.path.basename(filepath)} after successful upload"
+                    )
+                except Exception as e:
+                    logger.error(f"❌ Failed to delete {filepath}: {e}")
+
             # Update statistics
             self.stats["total_uploads"] += 1
-            self.stats["total_bits_uploaded"] += len(data_points)
+            self.stats["total_bits_uploaded"] += len(all_data_points)
+            self.stats["total_files_processed"] += files_deleted
             self.stats["last_upload_time"] = (
                 datetime.now(timezone.utc).isoformat() + "Z"
             )
 
             logger.info(
-                f"✅ Successfully uploaded {len(data_points)} bits to split '{today}'"
+                f"✅ Successfully uploaded {len(all_data_points)} bits to split '{today}', deleted {files_deleted} files"
             )
 
         except Exception as e:
             logger.error(f"❌ Failed to upload data: {e}")
+            logger.info("🔒 Files preserved due to upload failure - data is safe!")
             self.stats["upload_errors"] += 1
             raise
 
@@ -180,20 +199,43 @@ class QuantumUploader:
         while self.running:
             try:
                 # Read data files
-                data_points = self._read_data_files()
+                file_data_pairs = self._read_data_files()
 
-                if data_points:
-                    # Split into batches if needed
-                    for i in range(0, len(data_points), self.batch_size):
-                        batch = data_points[i : i + self.batch_size]
-                        self._upload_data(batch)
+                if file_data_pairs:
+                    # Calculate total data points for batching
+                    total_points = sum(len(data) for _, data in file_data_pairs)
 
-                        # Small delay between batches
-                        if i + self.batch_size < len(data_points):
-                            inter_batch_delay = get_config(
-                                "quantum_uploader.inter_batch_delay"
-                            )
-                            time.sleep(inter_batch_delay)
+                    if total_points <= self.batch_size:
+                        # Upload all files in one batch
+                        self._upload_data(file_data_pairs)
+                    else:
+                        # Split into batches by collecting data points until batch_size is reached
+                        current_batch = []
+                        current_batch_size = 0
+
+                        for filepath, data_points in file_data_pairs:
+                            if current_batch_size + len(data_points) <= self.batch_size:
+                                # Add entire file to current batch
+                                current_batch.append((filepath, data_points))
+                                current_batch_size += len(data_points)
+                            else:
+                                # Upload current batch if it has data
+                                if current_batch:
+                                    self._upload_data(current_batch)
+
+                                    # Small delay between batches
+                                    inter_batch_delay = get_config(
+                                        "quantum_uploader.inter_batch_delay"
+                                    )
+                                    time.sleep(inter_batch_delay)
+
+                                # Start new batch with current file
+                                current_batch = [(filepath, data_points)]
+                                current_batch_size = len(data_points)
+
+                        # Upload remaining batch
+                        if current_batch:
+                            self._upload_data(current_batch)
 
             except Exception as e:
                 logger.error(f"❌ Upload worker error: {e}")
@@ -239,9 +281,9 @@ class QuantumUploader:
 
         # Upload any remaining data
         try:
-            data_points = self._read_data_files()
-            if data_points:
-                self._upload_data(data_points)
+            file_data_pairs = self._read_data_files()
+            if file_data_pairs:
+                self._upload_data(file_data_pairs)
         except Exception as e:
             logger.error(f"❌ Error during final upload: {e}")
 
@@ -288,9 +330,9 @@ class QuantumUploader:
         """Manually trigger an upload"""
         logger.info("🔄 Manual upload triggered...")
         try:
-            data_points = self._read_data_files()
-            if data_points:
-                self._upload_data(data_points)
+            file_data_pairs = self._read_data_files()
+            if file_data_pairs:
+                self._upload_data(file_data_pairs)
                 logger.info("✅ Manual upload completed")
             else:
                 logger.info("📭 No data available for manual upload")
