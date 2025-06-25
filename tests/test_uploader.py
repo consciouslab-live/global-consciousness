@@ -9,7 +9,7 @@ import os
 import json
 import tempfile
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from src.services.quantum_uploader import QuantumUploader
 from src.config.config_loader import get_config
 
@@ -18,11 +18,15 @@ def create_test_data_file(data_dir: str, num_bits: int = 10, suffix: str = "") -
     """Create test data file"""
     data_points = []
 
+    # Create a base timestamp for this batch (simulating when a batch was fetched from quantum API)
+    base_timestamp = datetime.now(timezone.utc)
+
     for i in range(num_bits):
-        timestamp = datetime.now(timezone.utc).isoformat() + "Z"
+        # For testing purposes, add small increments to simulate quantum bit generation times
+        # In real implementation, all bits in a batch would have the same fetch timestamp
+        timestamp = (base_timestamp + timedelta(microseconds=i * 100)).isoformat() + "Z"
         bit = i % 2  # Alternating 0 and 1
         data_points.append({"timestamp": timestamp, "bit": bit})
-        time.sleep(0.01)  # Small interval to create different timestamps
 
     # Create file with unique name including microseconds and suffix
     now = datetime.now(timezone.utc)

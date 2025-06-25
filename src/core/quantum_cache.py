@@ -78,9 +78,11 @@ class QuantumCache:
                 "API key is required. Please set QUANTUM_API_KEY environment variable or pass api_key parameter."
             )
 
-        # Double buffering
+        # Double buffering with timestamps
         self.current_buffer: List[int] = []
+        self.current_buffer_timestamp: Optional[float] = None
         self.next_buffer: List[int] = []
+        self.next_buffer_timestamp: Optional[float] = None
 
         # State tracking
         self.current_index = 0
@@ -126,12 +128,12 @@ class QuantumCache:
         """Get parameters for format"""
         return {"length": self.cache_size, "type": "uint8"}
 
-    def _fetch_raw_data(self) -> Optional[List[int]]:
+    def _fetch_raw_data(self) -> Optional[tuple[List[int], float]]:
         """
         Fetch raw data from quantum API - absolutely no pseudo-random data used
 
         Returns:
-            Returns quantum data list on success, None on failure
+            Returns tuple of (quantum data list, fetch timestamp) on success, None on failure
         """
         start_time = time.time()
 
@@ -155,6 +157,8 @@ class QuantumCache:
                 )
 
                 if response.status_code == 200:
+                    # Record the exact timestamp when API responded with data
+                    fetch_timestamp = time.time()
                     data = response.json()
 
                     # Check for success in API format
@@ -168,7 +172,7 @@ class QuantumCache:
                         logger.info(
                             f"✅ Successfully fetched {len(bits)} quantum bits in {elapsed_time:.2f}s"
                         )
-                        return bits
+                        return bits, fetch_timestamp
                     else:
                         logger.warning(
                             f"API returned failure: {data.get('message', 'Unknown error')}"
@@ -226,20 +230,23 @@ class QuantumCache:
     def _initial_load(self):
         """Initial loading of quantum data"""
         logger.info("🚀 Initial quantum data loading...")
-        data = self._fetch_raw_data()
-        if data:
+        result = self._fetch_raw_data()
+        if result:
+            data, fetch_timestamp = result
             self.current_buffer = data
-            self.last_fetch_time = time.time()
+            self.current_buffer_timestamp = fetch_timestamp
+            self.last_fetch_time = fetch_timestamp
             logger.info(
                 f"✅ Initial load complete: {len(self.current_buffer)} quantum bits loaded"
             )
         else:
             logger.error("❌ CRITICAL: Failed to load initial quantum data")
             self.current_buffer = []
+            self.current_buffer_timestamp = None
             raise QuantumDataException("Failed to load initial quantum data.")
 
     def _prefetch_data(self):
-        """Prefetch next batch of quantum data in the background"""
+        """Prefetch next batch of quantum data in background thread"""
         if self.is_prefetching:
             return
 
@@ -249,22 +256,26 @@ class QuantumCache:
 
             try:
                 logger.info("🔄 Starting quantum data prefetch...")
-                data = self._fetch_raw_data()
+                result = self._fetch_raw_data()
 
                 with self.fetch_lock:
-                    if data:
+                    if result:
+                        data, fetch_timestamp = result
                         self.next_buffer = data
+                        self.next_buffer_timestamp = fetch_timestamp
                         logger.info(
                             f"✅ Prefetch complete: {len(data)} quantum bits ready"
                         )
                     else:
                         logger.error("❌ Prefetch failed - maintaining current buffer")
                         self.next_buffer = []
+                        self.next_buffer_timestamp = None
 
             except Exception as e:
                 logger.error(f"Prefetch error: {e}")
                 with self.fetch_lock:
                     self.next_buffer = []
+                    self.next_buffer_timestamp = None
             finally:
                 self.is_prefetching = False
 
@@ -303,7 +314,9 @@ class QuantumCache:
         if self._should_switch_buffer():
             with self.fetch_lock:
                 self.current_buffer = self.next_buffer[:]
+                self.current_buffer_timestamp = self.next_buffer_timestamp
                 self.next_buffer = []
+                self.next_buffer_timestamp = None
                 self.current_index = 0
                 logger.info(
                     f"🔄 Buffer switched: {len(self.current_buffer)} quantum bits available"
@@ -327,6 +340,19 @@ class QuantumCache:
         self.bit_stats["total_bits"] += 1
 
         return bit
+
+    def get_bit_with_timestamp(self) -> tuple[int, float]:
+        """
+        Get a single quantum bit with its fetch timestamp
+
+        Returns:
+            Tuple of (quantum random bit (0 or 1), fetch timestamp)
+
+        Raises:
+            QuantumDataException: When quantum data is not available
+        """
+        bit = self.get_bit()
+        return bit, self.current_buffer_timestamp or time.time()
 
     def get_bits(self, count: int) -> List[int]:
         """

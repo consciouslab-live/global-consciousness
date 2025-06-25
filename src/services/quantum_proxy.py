@@ -40,9 +40,17 @@ class QuantumDataBuffer:
             f"🔄 Started periodic buffer flush every {flush_interval}s (threshold: {self.flush_threshold})"
         )
 
-    def add_bit(self, bit: int):
+    def add_bit(self, bit: int, fetch_timestamp: Optional[float] = None):
         """Add a quantum bit with timestamp to the buffer"""
-        timestamp = datetime.now(timezone.utc).isoformat() + "Z"
+        if fetch_timestamp:
+            # Use the actual fetch timestamp from quantum API
+            timestamp = (
+                datetime.fromtimestamp(fetch_timestamp, timezone.utc).isoformat() + "Z"
+            )
+        else:
+            # Fallback to current time if no fetch timestamp provided
+            timestamp = datetime.now(timezone.utc).isoformat() + "Z"
+
         data_point = {"timestamp": timestamp, "bit": bit}
 
         with self.lock:
@@ -140,10 +148,10 @@ def get_bit():
         return jsonify({"error": "Quantum cache not available", "status": "error"}), 503
 
     try:
-        bit = quantum_cache.get_bit()
+        bit, fetch_timestamp = quantum_cache.get_bit_with_timestamp()
 
-        # Add to collection buffer for uploading
-        quantum_buffer.add_bit(bit)
+        # Add to collection buffer for uploading with actual fetch timestamp
+        quantum_buffer.add_bit(bit, fetch_timestamp)
 
         return jsonify({"bit": bit, "data_type": "quantum"})
     except QuantumDataException as e:
@@ -175,11 +183,13 @@ def get_bits():
         if count <= 0 or count > max_bits:
             return jsonify({"error": f"Invalid count. Must be 1-{max_bits}"}), 400
 
-        bits = quantum_cache.get_bits(count)
+        bits = []
+        for _ in range(count):
+            bit, fetch_timestamp = quantum_cache.get_bit_with_timestamp()
+            bits.append(bit)
 
-        # Add each bit to collection buffer for uploading
-        for bit in bits:
-            quantum_buffer.add_bit(bit)
+            # Add each bit to collection buffer for uploading with actual fetch timestamp
+            quantum_buffer.add_bit(bit, fetch_timestamp)
 
         return jsonify({"bits": bits, "count": len(bits), "data_type": "quantum"})
     except QuantumDataException as e:
