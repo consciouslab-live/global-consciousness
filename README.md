@@ -42,7 +42,7 @@ Replace `your_api_key_here` with your actual API key from the ANU Quantum Number
 ### Basic Quantum Cache Usage
 
 ```python
-from quantum_cache import QuantumCache
+from src.core.quantum_cache import QuantumCache
 
 # Initialize cache
 cache = QuantumCache(cache_size=50, prefetch_threshold=25)
@@ -59,7 +59,7 @@ print('10 quantum bits:', bits)
 ### Advanced Usage
 
 ```python
-from quantum_cache import QuantumCache, QuantumDataException
+from src.core.quantum_cache import QuantumCache, QuantumDataException
 
 try:
     # Initialize with custom parameters
