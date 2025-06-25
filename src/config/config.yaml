@@ -24,9 +24,10 @@ quantum_proxy:
 quantum_uploader:
   hf_repo: "consciouslab-live/quantum-bits"  # Default Hugging Face repository
   data_dir: "data/quantum_data"                   # Directory to read data files from
-  upload_interval: 3600                      # Upload interval (seconds) - 1 hour (matches split granularity)
-  batch_size: 10000                         # Maximum bits per upload batch
+  upload_interval: 1                         # Upload interval (seconds) - Optimized for uint32 packing
+  bits_per_upload: 32                       # Bits to collect per upload (32 = 1 uint32)
+  batch_size: 10000                         # Legacy batch size (kept for compatibility)
   small_batch_size: 1000                    # Smaller batch size for testing
   inter_batch_delay: 5                      # Delay between batches (seconds)
   thread_join_timeout: 10                   # Timeout for thread joining (seconds)
-  status_display_interval: 60               # Status display interval (seconds) 
+  status_display_interval: 30               # Status display interval (seconds) - More frequent for real-time mode 
