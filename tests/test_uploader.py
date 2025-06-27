@@ -24,7 +24,9 @@ def create_test_data_file(data_dir: str, num_bits: int = 10, suffix: str = "") -
     for i in range(num_bits):
         # For testing purposes, add small increments to simulate quantum bit generation times
         # In real implementation, all bits in a batch would have the same fetch timestamp
-        timestamp = (base_timestamp + timedelta(microseconds=i * 100)).isoformat() + "Z"
+        ts = base_timestamp + timedelta(microseconds=i * 100)
+        # Generate proper ISO timestamp with Z suffix (replace +00:00 with Z)
+        timestamp = ts.isoformat().replace("+00:00", "Z")
         bit = i % 2  # Alternating 0 and 1
         data_points.append({"timestamp": timestamp, "bit": bit})
 
@@ -49,9 +51,9 @@ def test_file_processing():
 
     try:
         # Create test data files with unique names
-        create_test_data_file(temp_dir, 5, "_file1")
+        create_test_data_file(temp_dir, 32, "_file1")
         time.sleep(0.1)  # Ensure different timestamps
-        create_test_data_file(temp_dir, 3, "_file2")
+        create_test_data_file(temp_dir, 32, "_file2")
 
         # Create uploader using configuration
         uploader = QuantumUploader(
@@ -71,9 +73,12 @@ def test_file_processing():
         remaining_files = [f for f in os.listdir(temp_dir) if f.startswith("bits_")]
         print(f"✅ Remaining files: {len(remaining_files)} (should be 0)")
 
-        # Since we only have 8 bits total (5+3), and need 32 bits for 1 uint32, we expect 0 uint32 values
-        # But files should still be processed and deleted
-        return len(remaining_files) == 0
+        # We have 64 bits total (32+32), should generate 2 uint32 values, and files should be deleted
+        expected_uint32_count = 2
+        return (
+            len(uint32_data_points) == expected_uint32_count
+            and len(remaining_files) == 0
+        )
 
     finally:
         # Clean up temporary directory
