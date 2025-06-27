@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from datasets import Dataset, Features, Value
 from huggingface_hub import login
+from dateutil.parser import parse as parse_datetime
 from src.config.config_loader import get_quantum_uploader_config, get_config
 
 # Load environment variables
@@ -164,17 +165,7 @@ class QuantumUploader:
                                 first_bit_timestamp = batch_bits[0]["timestamp"]
                                 # Convert ISO timestamp to Unix timestamp
                                 if isinstance(first_bit_timestamp, str):
-                                    # Handle different timestamp formats
-                                    timestamp_str = first_bit_timestamp
-                                    if timestamp_str.endswith("Z"):
-                                        timestamp_str = timestamp_str[:-1] + "+00:00"
-                                    elif "+00:00+00:00" in timestamp_str:
-                                        # Fix double timezone suffix
-                                        timestamp_str = timestamp_str.replace(
-                                            "+00:00+00:00", "+00:00"
-                                        )
-
-                                    dt = datetime.fromisoformat(timestamp_str)
+                                    dt = parse_datetime(first_bit_timestamp)
                                     unix_timestamp = int(dt.timestamp())
                                 else:
                                     unix_timestamp = int(first_bit_timestamp)
