@@ -13,7 +13,7 @@ from dateutil.parser import parse as parse_datetime
 from src.config.config_loader import get_quantum_uploader_config, get_config
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 # Configure logging
 logging.basicConfig(
