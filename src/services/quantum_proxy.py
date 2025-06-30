@@ -44,12 +44,12 @@ class QuantumDataBuffer:
         """Add a quantum bit with timestamp to the buffer"""
         if fetch_timestamp:
             # Use the actual fetch timestamp from quantum API
-            timestamp = (
-                datetime.fromtimestamp(fetch_timestamp, timezone.utc).isoformat() + "Z"
-            )
+            dt = datetime.fromtimestamp(fetch_timestamp, timezone.utc)
+            timestamp = dt.isoformat().replace("+00:00", "Z")
         else:
             # Fallback to current time if no fetch timestamp provided
-            timestamp = datetime.now(timezone.utc).isoformat() + "Z"
+            dt = datetime.now(timezone.utc)
+            timestamp = dt.isoformat().replace("+00:00", "Z")
 
         data_point = {"timestamp": timestamp, "bit": bit}
 
