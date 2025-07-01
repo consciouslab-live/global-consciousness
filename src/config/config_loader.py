@@ -28,52 +28,23 @@ class Config:
 
     def load_config(self, config_path: str = "src/config/config.yaml"):
         """Load configuration from YAML file"""
-        try:
-            if not os.path.exists(config_path):
-                raise FileNotFoundError(f"Configuration file {config_path} not found")
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(f"Configuration file {config_path} not found")
 
+        try:
             with open(config_path, "r", encoding="utf-8") as file:
                 self._config = yaml.safe_load(file)
+
+            if self._config is None:
+                raise ValueError("Configuration file is empty")
 
             logger.info(f"✅ Configuration loaded from {config_path}")
 
         except Exception as e:
-            logger.error(f"❌ Failed to load configuration: {e}")
-            # Fallback to default configuration
-            self._config = self._get_default_config()
-            logger.warning("⚠️ Using default configuration values")
-
-    def _get_default_config(self) -> Dict[str, Any]:
-        """Fallback default configuration"""
-        return {
-            "quantum_cache": {
-                "cache_size": 1024,
-                "prefetch_threshold": 512,
-                "request_timeout": 10,
-                "max_retries": 5,
-                "max_api_bits": 1024,
-                "rate_limit_wait": 60,
-                "exponential_backoff_max": 60,
-                "statistical_significance": 0.05,
-                "coin_fairness_threshold": 0.5,
-            },
-            "quantum_proxy": {
-                "data_dir": "data/quantum_data",
-                "flush_threshold": 100,
-                "periodic_flush_interval": 60,
-                "max_bits_per_request": 1000,
-            },
-            "quantum_uploader": {
-                "hf_repo": "consciouslab-live/quantum-bits",
-                "data_dir": "data/quantum_data",
-                "upload_interval": 3600,
-                "batch_size": 10000,
-                "small_batch_size": 1000,
-                "inter_batch_delay": 5,
-                "thread_join_timeout": 10,
-                "status_display_interval": 60,
-            },
-        }
+            logger.error(f"❌ Failed to load configuration from {config_path}: {e}")
+            raise RuntimeError(
+                f"Configuration loading failed: {e}. All configuration must be defined in {config_path}"
+            )
 
     def get(self, key_path: str, default: Any = None) -> Any:
         """
@@ -86,6 +57,9 @@ class Config:
         Returns:
             Configuration value or default
         """
+        if self._config is None:
+            raise RuntimeError("Configuration not loaded. Call load_config() first.")
+
         keys = key_path.split(".")
         value = self._config
 
