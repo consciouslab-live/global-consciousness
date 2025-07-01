@@ -21,6 +21,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Constants
+BITS_PER_UINT32 = 32  # uint32 is always 32 bits by definition
+
 
 class QuantumUploader:
     """
@@ -33,9 +36,6 @@ class QuantumUploader:
         hf_repo: Optional[str] = None,
         data_dir: Optional[str] = None,
         upload_interval: Optional[int] = None,  # seconds between uploads
-        bits_per_upload: Optional[
-            int
-        ] = None,  # bits to collect per upload (32 for uint32)
     ):
         """
         Initialize quantum uploader
@@ -44,16 +44,14 @@ class QuantumUploader:
             hf_repo: Hugging Face repository name (if None, uses config)
             data_dir: Directory containing data files from quantum_proxy.py (if None, uses config)
             upload_interval: Seconds between uploads (if None, defaults to 1 second)
-            bits_per_upload: Bits to collect per upload (if None, defaults to 32 for uint32)
         """
         # Load configuration
         uploader_config = get_quantum_uploader_config()
 
         self.hf_repo = hf_repo or uploader_config["hf_repo"]
         self.data_dir = data_dir or uploader_config["data_dir"]
-        # Override config for optimized uploading: 1 second intervals, 32 bits per upload
+        # Override config for optimized uploading: 1 second intervals
         self.upload_interval = upload_interval or 1  # 1 second for real-time streaming
-        self.bits_per_upload = bits_per_upload or 32  # 32 bits = 1 uint32
 
         # Control flags
         self.running = False
@@ -82,7 +80,7 @@ class QuantumUploader:
         logger.info(f"   Repository: {self.hf_repo}")
         logger.info(f"   Data Directory: {self.data_dir}")
         logger.info(f"   Upload interval: {self.upload_interval}s")
-        logger.info(f"   Bits per upload: {self.bits_per_upload} (uint32 packing)")
+        logger.info(f"   Bits per uint32: {BITS_PER_UINT32} (uint32 format)")
         logger.info("   📦 32 quantum bits → 1 uint32 value per second")
 
     def _login_hf(self):
@@ -148,13 +146,11 @@ class QuantumUploader:
                             self.bit_accumulator.extend(file_data)
 
                             # Process complete uint32 batches
-                            while len(self.bit_accumulator) >= self.bits_per_upload:
+                            while len(self.bit_accumulator) >= BITS_PER_UINT32:
                                 # Take first 32 bits
-                                batch_bits = self.bit_accumulator[
-                                    : self.bits_per_upload
-                                ]
+                                batch_bits = self.bit_accumulator[:BITS_PER_UINT32]
                                 self.bit_accumulator = self.bit_accumulator[
-                                    self.bits_per_upload :
+                                    BITS_PER_UINT32:
                                 ]
 
                                 # Convert to uint32
@@ -333,8 +329,8 @@ class QuantumUploader:
             "running": self.running,
             "pending_files": pending_files,
             "accumulated_bits": accumulated_bits,
-            "bits_needed_for_next_uint32": self.bits_per_upload
-            - (accumulated_bits % self.bits_per_upload),
+            "bits_needed_for_next_uint32": BITS_PER_UINT32
+            - (accumulated_bits % BITS_PER_UINT32),
             "stats": self.stats.copy(),
         }
 
@@ -399,9 +395,9 @@ class QuantumUploader:
             return {
                 "total_bits_in_accumulator": len(self.bit_accumulator),
                 "complete_uint32_batches_ready": len(self.bit_accumulator)
-                // self.bits_per_upload,
-                "remaining_bits": len(self.bit_accumulator) % self.bits_per_upload,
-                "next_uint32_completion_progress": f"{len(self.bit_accumulator) % self.bits_per_upload}/{self.bits_per_upload}",
+                // BITS_PER_UINT32,
+                "remaining_bits": len(self.bit_accumulator) % BITS_PER_UINT32,
+                "next_uint32_completion_progress": f"{len(self.bit_accumulator) % BITS_PER_UINT32}/{BITS_PER_UINT32}",
             }
 
 

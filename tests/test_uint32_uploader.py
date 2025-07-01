@@ -103,7 +103,6 @@ def test_optimized_uploader():
         uploader = QuantumUploader(
             data_dir=temp_dir,
             upload_interval=2,  # 2 seconds for testing
-            bits_per_upload=32,
         )
 
         # Create test data files
