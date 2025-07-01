@@ -2,6 +2,8 @@ YOUTUBE_STREAM_KEY=$(grep '^YOUTUBE_STREAM_KEY=' .env | cut -d '=' -f2-)
 
 RTMP="rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_STREAM_KEY"
 
+# Open Ultra Low Latency for YouTube
+
 ffmpeg -use_wallclock_as_timestamps 1 \
   -f lavfi -i "color=black:s=1280x720:r=30" \
   -f lavfi -i "anullsrc=cl=stereo:r=44100" \
